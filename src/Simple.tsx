@@ -22,12 +22,11 @@ export class Simple extends React.Component<Props, State> {
 
     calculator = new Calculator<State>([
         {
-            id: "c",
-            depsProvider: state => [state().a, state().b],
-            needStart: provider => provider().b % 2 === 0,
-            func: async (provider, signal) => {
+            depsProvider: x => [x.a, x.b],
+            condition: x => x.b % 2 === 0,
+            func: async (signal, x) => {
                 await PromiseHelper.delay(5000, signal);
-                return provider().a + provider().b;
+                return x.a + x.b;
             },
             effect: c => this.setState({ c })
         }
