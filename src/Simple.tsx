@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator } from './calculator/calculator';
+import { Calculator } from './calculator/Calculator';
 import { PromiseHelper } from './utils/PromiseHelper';
 
 export interface Props {

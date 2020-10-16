@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calculator } from './calculator/calculator';
+import { Calculator } from './calculator/Calculator';
+import { withKey } from './calculator/key';
 
 interface Props {
 
@@ -26,7 +27,7 @@ export class ArrayComp extends React.Component<Props, State> {
         // }
         {
             path: x => x.array,
-            rule: {
+            itemRule: {
                 depsProvider: x => [x.a, x.b],
                 condition: x => true,
                 func: (s, x) => Promise.resolve(x.a + x.b),
@@ -43,6 +44,7 @@ export class ArrayComp extends React.Component<Props, State> {
                 </pre>
 
                 <div>
+                    <button onClick={this.handleEqualArray}>array equal</button>
                     {this.state.array.map((x, i) => (
                         <div key={i}>
                             {i} <button onClick={() => this.handleClick(i, "a")}>a</button> <button onClick={() => this.handleClick(i, "b")}>b</button> <button onClick={this.handleEqual}>equal</button>
@@ -56,15 +58,19 @@ export class ArrayComp extends React.Component<Props, State> {
 
     private handleClick = (index: number, field: "a" | "b") => {
         this.setState(state => ({
-            array: state.array.map((x, i) => i === index ? { ...x, [field]: x[field] + 1 } : x)
+            array: state.array.map((x, i) => i === index ? withKey({ ...x, [field]: x[field] + 1 }, x) : x)
         }), () => this.calculator.calc(this.state))
     }
 
-    private handleEqual = () => {
+    private handleEqualArray = () => {
         this.calculator.calc(this.state);
     }
 
+    private handleEqual = () => {
+        this.setState(prev => ({array: prev.array.map(x => x)}), () => this.calculator.calc(this.state));
+    }
+
     private handleAdd = () => {
-        this.setState(state => ({ array: [...state.array, { a: 5, b: 1, c: 0 }] }), () => this.calculator.calc(this.state));
+        this.setState(state => ({ array: [...state.array, withKey({ a: 5, b: 1, c: 0 })] }), () => this.calculator.calc(this.state));
     }
 }
