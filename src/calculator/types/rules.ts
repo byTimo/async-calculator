@@ -1,4 +1,5 @@
 export interface RootRule<T, TData> {
+    id: string;
     depsProvider: (root: T) => any[];
     condition: (root: T) => boolean;
     func: (signal: AbortSignal, root: T) => Promise<TData>;
@@ -6,6 +7,7 @@ export interface RootRule<T, TData> {
 }
 
 export interface ArrayRule<T, TItem, TData> {
+    id: string;
     path: (root: T) => TItem[];
     itemRule: ArrayItemRule<T, TItem, TData>
 }

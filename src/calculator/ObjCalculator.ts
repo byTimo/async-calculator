@@ -4,16 +4,16 @@ import { RootRule } from './types/rules';
 import { State, emptyState } from './types/state';
 
 export class ObjCalculator<T> {
-    private scheduledRules: Set<RootRule<T, any>> = new Set();
-    private state: Map<RootRule<T, any>, State>;
+    private scheduledRules: Set<string> = new Set();
+    private state: Map<string, State>;
 
     constructor(private rules: RootRule<T, any>[]) {
-        this.state = rules.reduce((a, c) => a.set(c, emptyState()), new Map());
+        this.state = rules.reduce((a, c) => a.set(c.id, emptyState()), new Map());
     }
 
     public calc = (root: T) => {
         for (const rule of this.rules) {
-            const state = this.state.get(rule);
+            const state = this.state.get(rule.id);
             if (state == null) {
                 throw new Error("Can't find state for rule");
             }
@@ -28,7 +28,7 @@ export class ObjCalculator<T> {
 
             if (state.promise != null) {
                 state.abort!.abort();
-                this.scheduledRules.delete(rule);
+                this.scheduledRules.delete(rule.id);
             }
 
             if (!rule.condition(root)) {
@@ -43,10 +43,10 @@ export class ObjCalculator<T> {
     }
 
     private scheduleCalculation = async (rule: RootRule<T, any>, state: State, root: T, signal: AbortSignal): Promise<void> => {
-        this.scheduledRules.add(rule);
+        this.scheduledRules.add(rule.id);
         try {
             const response = await rule.func(signal, root);
-            this.scheduledRules.delete(rule);
+            this.scheduledRules.delete(rule.id);
             state.promise = null;
             state.abort = null;
             PromiseHelper.abortableRequest(() => {
@@ -61,5 +61,9 @@ export class ObjCalculator<T> {
 
     public get loading(): boolean {
         return this.scheduledRules.size > 0;
+    }
+
+    public loadingById(id: string): boolean {
+        return this.scheduledRules.has(id);
     }
 }
