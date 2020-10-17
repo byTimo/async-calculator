@@ -89,7 +89,7 @@ describe("ObjCalculator", () => {
             depsProvider: x => [x.a],
             condition: x => x.a === 2,
             func: (signal, x) => PromiseHelper.delay(5, signal).then(() => x.b),
-            effect: () => { throw new Error("must stop calculation") }
+            effect: () => expect(false).toBe(true)
         }]);
 
         calculator.calc({ a: 2, b: 2 });

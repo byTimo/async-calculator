@@ -16,16 +16,8 @@ export class ArrayComp extends React.Component<Props, State> {
     }
 
     calculator = new Calculator<State>([
-        //     {
-        //     id: "c",
-        //     type: "array",
-        //     path: x => x.array,
-        //     depsProvider: x => [x.a, x.b],
-        //     condition: x => x.b%2 ===0,
-        //     func: x => Promise.resolve(x.a + x.b),
-        //     effect: (c, _, array) => this.setState({array})// ??
-        // }
         {
+            id: "array",
             path: x => x.array,
             itemRule: {
                 depsProvider: x => [x.a, x.b],

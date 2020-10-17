@@ -17,4 +17,12 @@ export class Calculator<T> {
         this.objCalculator.calc(root);
         this.arrayCalculator.calc(root);
     }
+
+    public get loading(): boolean {
+        return this.objCalculator.loading || this.arrayCalculator.loading;
+    }
+
+    public loadingById(id: string, key?: string): boolean {
+        return this.objCalculator.loadingById(id) || this.arrayCalculator.loadingById(id, key);
+    }
 }

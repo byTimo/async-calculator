@@ -8,7 +8,7 @@ export class ArrayCalculator<T> {
     private arrayStates: Map<string, State>;
     private itemStates: Map<string, Map<string, State>>;
 
-    private lol: Map<string, Set<string>> = new Map();
+    private scheduledRules: Map<string, Set<string>> = new Map();
 
     constructor(private rules: ArrayRule<T, any, any>[]) {
         this.arrayStates = rules.reduce((a, c) => a.set(c.id, emptyState()), new Map());
@@ -46,25 +46,25 @@ export class ArrayCalculator<T> {
 
                 if (nextState.abort != null) {
                     nextState.abort.abort();
+                    this.unregisterCalculation(rule.id, key);
                 }
 
-                if (!rule.itemRule.condition(item, index, array, root)) {
+                if (rule.itemRule.condition(item, index, array, root)) {
+                    nextState.abort = new AbortController();
+                    nextState.promise = this.scheduleCalculation(
+                        rule.id,
+                        rule.itemRule,
+                        nextState,
+                        item,
+                        index,
+                        array,
+                        root,
+                        nextState.abort.signal
+                    );
+                } else {
                     nextState.abort = null;
                     nextState.promise = null;
-                    return;
                 }
-
-                nextState.abort = new AbortController();
-                nextState.promise = this.scheduleCalculation(
-                    rule.id,
-                    rule.itemRule,
-                    nextState,
-                    item,
-                    index,
-                    array,
-                    root,
-                    nextState.abort.signal
-                );
 
                 nextItemsState.set(key, nextState);
                 if (prevItemsState.has(key)) {
@@ -100,7 +100,6 @@ export class ArrayCalculator<T> {
             this.unregisterCalculation(arrayRuleId, key);
             itemState.promise = null;
             itemState.abort = null;
-            this.lol.get(arrayRuleId)!.delete(extractKey(item));
             PromiseHelper.abortableRequest(() => {
                 rule.effect(data, item, index, array, root);
             }, signal);
@@ -112,26 +111,26 @@ export class ArrayCalculator<T> {
     }
 
     private registerCalculation = (id: string, key: string) => {
-        if (!this.lol.has(id)) {
-            this.lol.set(id, new Set());
+        if (!this.scheduledRules.has(id)) {
+            this.scheduledRules.set(id, new Set());
         }
-        this.lol.get(id)!.add(key);
+        this.scheduledRules.get(id)!.add(key);
     }
 
     private unregisterCalculation = (id: string, key: string) => {
-        const set = this.lol.get(id)!;
+        const set = this.scheduledRules.get(id)!;
         set.delete(key);
         if (set.size === 0) {
-            this.lol.delete(id);
+            this.scheduledRules.delete(id);
         }
     }
 
     public get loading(): boolean {
-        return this.lol.size > 0;
+        return this.scheduledRules.size > 0;
     }
 
     public loadingById(id: string, key?: string): boolean {
-        if (!this.lol.has(id)) {
+        if (!this.scheduledRules.has(id)) {
             return false;
         }
 
@@ -139,6 +138,6 @@ export class ArrayCalculator<T> {
             return true;
         }
 
-        return this.lol.get(id)!.has(key);
+        return this.scheduledRules.get(id)!.has(key);
     }
 }

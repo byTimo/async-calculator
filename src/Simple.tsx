@@ -22,6 +22,7 @@ export class Simple extends React.Component<Props, State> {
 
     calculator = new Calculator<State>([
         {
+            id: "simple",
             depsProvider: x => [x.a, x.b],
             condition: x => x.b % 2 === 0,
             func: async (signal, x) => {
