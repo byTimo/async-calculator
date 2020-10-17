@@ -4,6 +4,7 @@ import { RootRule } from './types/rules';
 import { State, emptyState } from './types/state';
 
 export class ObjCalculator<T> {
+    private scheduledRules: Set<RootRule<T, any>> = new Set();
     private state: Map<RootRule<T, any>, State>;
 
     constructor(private rules: RootRule<T, any>[]) {
@@ -27,6 +28,7 @@ export class ObjCalculator<T> {
 
             if (state.promise != null) {
                 state.abort!.abort();
+                this.scheduledRules.delete(rule);
             }
 
             if (!rule.condition(root)) {
@@ -36,14 +38,28 @@ export class ObjCalculator<T> {
             }
 
             state.abort = new AbortController();
-            state.promise = this.scheduleCalculation(rule, root, state.abort.signal);
+            state.promise = this.scheduleCalculation(rule, state, root, state.abort.signal);
         }
     }
 
-    private scheduleCalculation = async (rule: RootRule<T, any>, root: T, signal: AbortSignal): Promise<void> => {
-        const response = await rule.func(signal, root);
-        PromiseHelper.abortableRequest(() => {
-            rule.effect(response, root)
-        }, signal);
+    private scheduleCalculation = async (rule: RootRule<T, any>, state: State, root: T, signal: AbortSignal): Promise<void> => {
+        this.scheduledRules.add(rule);
+        try {
+            const response = await rule.func(signal, root);
+            this.scheduledRules.delete(rule);
+            state.promise = null;
+            state.abort = null;
+            PromiseHelper.abortableRequest(() => {
+                rule.effect(response, root)
+            }, signal);
+        } catch (error) {
+            if (error == null || error.type !== "abort") {
+                throw error;
+            }
+        }
+    }
+
+    public get loading(): boolean {
+        return this.scheduledRules.size > 0;
     }
 }

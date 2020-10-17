@@ -1,4 +1,6 @@
 export class PromiseHelper {
+    static abortController = new AbortController();
+
     static delay = (time: number, signal: AbortSignal): Promise<void> => {
         return new Promise((resolve, reject) => {
             PromiseHelper.timeout(resolve, time, signal);
@@ -29,5 +31,9 @@ export class PromiseHelper {
             func();
         });
         signal.addEventListener("abort", abortSubscription);
+    }
+
+    static get noneSignal(): AbortSignal {
+        return PromiseHelper.abortController.signal;
     }
 }

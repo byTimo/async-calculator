@@ -19,3 +19,12 @@ export function parttion<T>(source: T[], partSelector: (item: T) => boolean): [T
     }
     return [trueResult, falseResult];
 }
+
+export function some<T>(source: Iterable<T>, checker: (item: T) => boolean): boolean {
+    for(const item of source) {
+        if(!checker(item)) {
+            return false;
+        }
+    }
+    return true;
+}
