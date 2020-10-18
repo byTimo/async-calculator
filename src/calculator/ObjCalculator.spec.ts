@@ -119,4 +119,28 @@ describe("ObjCalculator", () => {
         expect(calculator.loadingById("1")).toBe(true);
         expect(calculator.loadingById("2")).toBe(false);
     });
+
+    it("schedule debounced calculation", async done => {
+        const calculator = new ObjCalculator<Simple>([{
+            id: "1",
+            depsProvider: x => [x.a],
+            condition: () => true,
+            func: (signal, x) => {
+                expect(x.a).toBe(10);
+                done();
+                return Promise.resolve(10);
+            },
+            effect: () => expect(false).toBe(true),
+            options: {
+                debounce: 50
+            }
+        }]);
+
+    
+        calculator.calc({ a: 2, b: 2 });
+        await PromiseHelper.delay(10, PromiseHelper.noneSignal);
+        calculator.calc({ a: 5, b: 7 });
+        await PromiseHelper.delay(10, PromiseHelper.noneSignal);
+        calculator.calc({ a: 10, b: 7 });
+    })
 })

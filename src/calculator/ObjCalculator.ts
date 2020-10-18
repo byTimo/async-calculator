@@ -43,12 +43,21 @@ export class ObjCalculator<T> {
     }
 
     private scheduleCalculation = async (rule: RootRule<T, any>, state: State, root: T, signal: AbortSignal): Promise<void> => {
+        const debounce = rule.options != null ? rule.options.debounce : null;
         this.scheduledRules.add(rule.id);
         try {
+            if (debounce != null) {
+                await PromiseHelper.delay(debounce, signal);
+            }
             const response = await rule.func(signal, root);
+            if (signal.aborted) {
+                return;
+            }
+
             this.scheduledRules.delete(rule.id);
             state.promise = null;
             state.abort = null;
+
             PromiseHelper.abortableRequest(() => {
                 rule.effect(response, root)
             }, signal);

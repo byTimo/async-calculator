@@ -27,58 +27,58 @@ export class ArrayCalculator<T> {
 
             state.prevDeps = array;
 
-            const prevItemsState = this.itemStates.get(rule.id) || new Map<string, State>();
-            const nextItemsState = new Map<string, State>();
+            const prevStates = this.itemStates.get(rule.id) || new Map<string, State>();
+            const nextStates = new Map<string, State>();
 
 
             array.forEach((item, index, array) => {
                 const key = extractKey(item);
-                const state = prevItemsState.get(key);
+                const state = prevStates.get(key) || emptyState();
+
+                nextStates.set(key, state);
+                if (prevStates.has(key)) {
+                    prevStates.delete(key);
+                }
 
                 const deps = rule.itemRule.depsProvider(item, index, array, root);
-                if (state != null && shallowEquals(deps, state.prevDeps)) {
+                if (shallowEquals(deps, state.prevDeps)) {
                     return;
                 }
 
-                const nextState = state || emptyState();
+                state.prevDeps = deps;
 
-                nextState.prevDeps = deps;
-
-                if (nextState.abort != null) {
-                    nextState.abort.abort();
+                if (state.abort != null) {
+                    state.abort.abort();
                     this.unregisterCalculation(rule.id, key);
                 }
 
-                if (rule.itemRule.condition(item, index, array, root)) {
-                    nextState.abort = new AbortController();
-                    nextState.promise = this.scheduleCalculation(
-                        rule.id,
-                        rule.itemRule,
-                        nextState,
-                        item,
-                        index,
-                        array,
-                        root,
-                        nextState.abort.signal
-                    );
-                } else {
-                    nextState.abort = null;
-                    nextState.promise = null;
+                if (!rule.itemRule.condition(item, index, array, root)) {
+                    state.abort = null;
+                    state.promise = null;
+                    return;
                 }
 
-                nextItemsState.set(key, nextState);
-                if (prevItemsState.has(key)) {
-                    prevItemsState.delete(key);
-                }
+                state.abort = new AbortController();
+                state.promise = this.scheduleCalculation(
+                    rule.id,
+                    rule.itemRule,
+                    state,
+                    item,
+                    index,
+                    array,
+                    root,
+                    state.abort.signal
+                );
             })
 
-            prevItemsState.forEach((state) => {
+            prevStates.forEach((state, key) => {
                 if (state.abort != null) {
                     state.abort.abort();
+                    this.unregisterCalculation(rule.id, key);
                 }
             })
 
-            this.itemStates.set(rule.id, nextItemsState);
+            this.itemStates.set(rule.id, nextStates);
         }
     }
 
@@ -93,13 +93,25 @@ export class ArrayCalculator<T> {
         root: T,
         signal: AbortSignal
     ): Promise<void> => {
+
         const key = extractKey(item);
         this.registerCalculation(arrayRuleId, key)
+        const debounce = rule.options != null ? rule.options.debounce : null;
         try {
+            if (debounce != null) {
+                await PromiseHelper.delay(debounce, signal);
+            }
             const data = await rule.func(signal, item, index, array, root);
+
+            //В func передали signal, а func его не использует
+            if (signal.aborted) {
+                return;
+            }
+
             this.unregisterCalculation(arrayRuleId, key);
             itemState.promise = null;
             itemState.abort = null;
+
             PromiseHelper.abortableRequest(() => {
                 rule.effect(data, item, index, array, root);
             }, signal);

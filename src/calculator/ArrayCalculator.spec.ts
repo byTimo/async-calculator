@@ -20,7 +20,7 @@ describe("ArrayCalculator", () => {
                 condition: x => true,
                 func: (_, x) => Promise.resolve(x.a),
                 effect: data => {
-                    if(data === 10) {
+                    if (data === 10) {
                         done();
                     }
                 }
@@ -43,7 +43,7 @@ describe("ArrayCalculator", () => {
                 condition: x => true,
                 func: (_, x) => Promise.resolve(x.a),
                 effect: data => {
-                    if(data === 16) {
+                    if (data === 16) {
                         done();
                     }
                 }
@@ -70,7 +70,7 @@ describe("ArrayCalculator", () => {
             path: x => x.array,
             itemRule: {
                 depsProvider: x => [x.a],
-                condition: x => true,
+                condition: () => true,
                 func: (_, x) => Promise.resolve(x.a),
                 effect: data => {
                     if (data === 10) {
@@ -83,8 +83,8 @@ describe("ArrayCalculator", () => {
         let item = withKey({ a: 10, b: "foo" });
         calculator.calc({ array: [item] });
 
-        item = withKey({a: 10, b: "bar"}, item);
-        calculator.calc({array: [item]})
+        item = withKey({ a: 10, b: "bar" }, item);
+        calculator.calc({ array: [item] })
         expect(calculator.loading).toBe(true);
     });
 
@@ -94,7 +94,7 @@ describe("ArrayCalculator", () => {
             path: x => x.array,
             itemRule: {
                 depsProvider: x => [x.a],
-                condition: x => false,
+                condition: () => false,
                 func: (_, x) => Promise.resolve(x.a),
                 effect: () => expect(false).toBe(true)
             }
@@ -112,7 +112,7 @@ describe("ArrayCalculator", () => {
             itemRule: {
                 depsProvider: x => [x.a],
                 condition: x => x.a !== 10,
-                func: (_, x) => Promise.resolve(x.a),
+                func: () => Promise.resolve(10),
                 effect: () => expect(false).toBe(true)
             }
         }]);
@@ -124,5 +124,38 @@ describe("ArrayCalculator", () => {
         item = withKey({ a: 10, b: "bar" }, item);
         calculator.calc({ array: [item] })
         expect(calculator.loading).toBe(false);
+    });
+
+    it("schedule debounced calculation", async done => {
+        const calculator = new ArrayCalculator<Root>([{
+            id: "array",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => true,
+                func: (_, x) => {
+                    expect(x.a).toBe(10);
+                    return Promise.resolve(10);
+                },
+                effect: data => {
+                    expect(data).toBe(10);
+                    done();
+                },
+                options: {
+                    debounce: 50
+                }
+            }
+        }]);
+
+        let item = withKey({ a: 8, b: "foo" });
+        calculator.calc({ array: [item] });
+        await PromiseHelper.delay(10, PromiseHelper.noneSignal);
+
+        item = withKey({ a: 9, b: "bar" }, item);
+        calculator.calc({ array: [item] })
+
+        await PromiseHelper.delay(10, PromiseHelper.noneSignal)
+        item = withKey({ a: 10, b: "bar" }, item);
+        calculator.calc({ array: [item] })
     });
 })

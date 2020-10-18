@@ -1,9 +1,14 @@
+interface Options {
+    debounce?: number;
+}
+
 export interface RootRule<T, TData> {
     id: string;
     depsProvider: (root: T) => any[];
     condition: (root: T) => boolean;
     func: (signal: AbortSignal, root: T) => Promise<TData>;
     effect: (data: TData, root: T) => void;
+    options?: Options;
 }
 
 export interface ArrayRule<T, TItem, TData> {
@@ -17,6 +22,7 @@ export interface ArrayItemRule<T, TItem, TData> {
     condition: (item: TItem, index: number, array: TItem[], root: T) => boolean;
     func: (signal: AbortSignal, item: TItem, index: number, array: TItem[], root: T) => Promise<TData>;
     effect: (data: TData, item: TItem, index: number, array: TItem[], root: T) => void;
+    options?: Options;
 }
 
 export type Rule<T> = RootRule<T, any> | ArrayRule<T, any, any>
