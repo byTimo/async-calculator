@@ -210,7 +210,7 @@ describe("ArrayCalculator", () => {
 
     it("doesn't init rules when condition is false", async () => {
         let count = 0;
-        
+
         const calculator = new ArrayCalculator<Root>([{
             id: "a",
             path: x => x.array,
@@ -228,5 +228,52 @@ describe("ArrayCalculator", () => {
         let item = withKey({ a: 100, b: "lol" });
         await calculator.init({ array: [item] });
         expect(count).toBe(0);
+    });
+
+    it("run calculation for new item", async () => {
+        let count = 0;
+
+        const calculator = new ArrayCalculator<Root>([{
+            id: "a",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => true,
+                func: () => Promise.resolve(10),
+                effect: () => count = count + 1,
+            }
+        }]);
+
+        let item1 = withKey({ a: 100, b: "lol" });
+        calculator.calc({ array: [item1] });
+
+        let item2 = withKey({ a: 15, b: "bar" });
+        calculator.calc({ array: [item1, item2] });
+        await PromiseHelper.delay(100, PromiseHelper.noneSignal);
+        expect(count).toBe(2);
+    });
+
+    it("stop calculation for item that was deleted", async () => {
+        let count = 0;
+
+        const calculator = new ArrayCalculator<Root>([{
+            id: "a",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => true,
+                func: (signal) => PromiseHelper.delay(1, signal).then(() => 5),
+                effect: () => count = count + 1,
+            }
+        }]);
+
+        let item1 = withKey({ a: 100, b: "lol" });
+        let item2 = withKey({a: 15, b: "bar"})
+        calculator.calc({ array: [item1, item2] });
+        expect(calculator.loadingById("a", extractKey(item1))).toBe(true);
+
+        calculator.calc({ array: [item2] });
+        await PromiseHelper.delay(100, PromiseHelper.noneSignal);
+        expect(count).toBe(1);
     });
 })
