@@ -1,6 +1,8 @@
 import React from 'react';
 import { Calculator } from './calculator/Calculator';
 import { withKey } from './calculator/key';
+import { createArrayRule } from './calculator/RuleBuilder';
+import { PromiseHelper } from './utils/PromiseHelper';
 
 interface Props {
 
@@ -16,16 +18,14 @@ export class ArrayComp extends React.Component<Props, State> {
     }
 
     calculator = new Calculator<State>([
-        {
-            id: "array",
-            path: x => x.array,
-            itemRule: {
-                depsProvider: x => [x.a, x.b],
-                condition: x => true,
-                func: (s, x) => Promise.resolve(x.a + x.b),
-                effect: (d, x, i) => this.setState(state => ({ array: state.array.map((y, j) => j === i ? {...x, c: d} : y) }))
-            }
-        }
+        createArrayRule(
+            "array",
+            x => x.array,
+            x => [x.a, x.b],
+            () => true,
+            (s, x) => PromiseHelper.delay(10, s).then(() => x.a + x.b),
+            (data, x, i) => this.setState(state => ({array: state.array.map((y, j) => j === i ? {...x, c: data} : y)}))
+        )
     ])
 
     render() {

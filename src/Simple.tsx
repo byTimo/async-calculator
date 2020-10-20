@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calculator } from './calculator/Calculator';
 import { PromiseHelper } from './utils/PromiseHelper';
+import { createRule } from './calculator/RuleBuilder';
 
 export interface Props {
 
@@ -21,16 +22,16 @@ export class Simple extends React.Component<Props, State> {
     }
 
     calculator = new Calculator<State>([
-        {
-            id: "simple",
-            depsProvider: x => [x.a, x.b],
-            condition: x => x.b % 2 === 0,
-            func: async (signal, x) => {
-                await PromiseHelper.delay(5000, signal);
+        createRule(
+            "simple",
+            x => [x.a, x.b],
+            x => x.b % 2 === 0,
+            async (signal, x) => {
+                await PromiseHelper.delay(500, signal);
                 return x.a + x.b;
             },
-            effect: c => this.setState({ c })
-        }
+            data => this.setState({ c: data })
+        ),
     ])
 
     render() {
@@ -46,7 +47,7 @@ export class Simple extends React.Component<Props, State> {
     }
 
     private handleClick = (field: keyof State) => {
-        this.setState(state => ({[field]: state[field] + 1} as any), () => {
+        this.setState(state => ({ [field]: state[field] + 1 } as any), () => {
             this.calculator.calc(this.state);
         })
     }

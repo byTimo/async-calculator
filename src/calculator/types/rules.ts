@@ -1,4 +1,4 @@
-interface Options {
+export interface Options {
     debounce?: number;
     calcInitTime?: boolean;
 }
