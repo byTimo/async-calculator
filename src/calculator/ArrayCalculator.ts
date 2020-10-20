@@ -17,37 +17,40 @@ export class ArrayCalculator<T> {
 
     public init = (root: T): Promise<void[][]> => {
         const initRules = this.rules.filter(x => x.itemRule.options != null && x.itemRule.options.calcInitTime);
-
-        const promises = initRules.reduce((result, rule) => {
-            const array = rule.path(root);
-            const state = this.arrayStates.get(rule.id)!;
-            state.prevDeps = array;
-            const nextItemState = new Map<string, State>();
-
-            const promises = array.reduce((result, item, index, array) => {
-                const key = extractKey(item);
-                const state = emptyState();
-                nextItemState.set(key, state);
-                state.prevDeps = rule.itemRule.depsProvider(item, index, array, root);
-
-                if (rule.itemRule.condition(item, index, array, root)) {
-                    const scheduleCalculation = async () => {
-                        const data = await rule.itemRule.func(PromiseHelper.noneSignal, item, index, array, root);
-                        rule.itemRule.effect(data, item, index, array, root);
-                    }
-                    result.push(scheduleCalculation());
-                }
-
-
-                return result;
-            }, [] as Array<Promise<void>>);
-            
-            result.push(Promise.all(promises));
-            this.itemStates.set(rule.id, nextItemState);
-            return result;
-        }, [] as Array<Promise<void[]>>);
-
+        const promises = initRules.map(rule => this.initRule(rule, root));
         return Promise.all(promises);
+    }
+
+    private initRule = <TItem, TData>(rule: ArrayRule<T, TItem, TData>, root: T): Promise<void[]> => {
+        const array = rule.path(root);
+        const state = this.arrayStates.get(rule.id)!;
+        state.prevDeps = array;
+        const nextItemState = new Map<string, State>();
+
+        const promises = array.map((item, index, array) => {
+            const key = extractKey(item);
+            const state = emptyState();
+            nextItemState.set(key, state);
+            state.prevDeps = rule.itemRule.depsProvider(item, index, array, root);
+
+            return rule.itemRule.condition(item, index, array, root)
+                ? this.runCalculation(rule, item, index, array, root)
+                : Promise.resolve()
+        })
+
+        this.itemStates.set(rule.id, nextItemState);
+        return Promise.all(promises);
+    }
+
+    private runCalculation = async <TItem>(
+        rule: ArrayRule<T, any, any>,
+        item: TItem,
+        index: number,
+        array: TItem[],
+        root: T
+    ): Promise<void> => {
+        const data = await rule.itemRule.func(PromiseHelper.noneSignal, item, index, array, root);
+        rule.itemRule.effect(data, item, index, array, root);
     }
 
     public calc = (root: T) => {

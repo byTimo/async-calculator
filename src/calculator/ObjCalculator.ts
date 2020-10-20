@@ -14,20 +14,20 @@ export class ObjCalculator<T> {
     public init = (root: T): Promise<void[]> => {
         const initRules = this.rules.filter(x => x.options != null && x.options.calcInitTime);
 
-        const promises = initRules.reduce((result, rule) => {
+        const promises = initRules.map(rule => {
             const state = this.state.get(rule.id)!;
             state.prevDeps = rule.depsProvider(root);
-            if (rule.condition(root)) {
-                const scheduleCalculation = async () => {
-                    const data = await rule.func(PromiseHelper.noneSignal, root);
-                    rule.effect(data, root);
-                }
-                result.push(scheduleCalculation());
-            }
-            return result;
-        }, [] as Array<Promise<void>>)
+            return rule.condition(root)
+                ? this.runCalculation(rule, root)
+                : Promise.resolve()
+        })
 
         return Promise.all(promises);
+    }
+
+    private runCalculation = async (rule: RootRule<T, any>, root: T): Promise<void> => {
+        const data = await rule.func(PromiseHelper.noneSignal, root);
+        rule.effect(data, root);
     }
 
     public calc = (root: T) => {
