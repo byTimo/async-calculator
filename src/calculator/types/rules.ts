@@ -1,5 +1,6 @@
 interface Options {
     debounce?: number;
+    calcInitTime?: boolean;
 }
 
 export interface RootRule<T, TData> {

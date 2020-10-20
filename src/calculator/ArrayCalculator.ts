@@ -15,6 +15,41 @@ export class ArrayCalculator<T> {
         this.itemStates = rules.reduce((a, c) => a.set(c.id, new Map()), new Map());
     }
 
+    public init = (root: T): Promise<void[][]> => {
+        const initRules = this.rules.filter(x => x.itemRule.options != null && x.itemRule.options.calcInitTime);
+
+        const promises = initRules.reduce((result, rule) => {
+            const array = rule.path(root);
+            const state = this.arrayStates.get(rule.id)!;
+            state.prevDeps = array;
+            const nextItemState = new Map<string, State>();
+
+            const promises = array.reduce((result, item, index, array) => {
+                const key = extractKey(item);
+                const state = emptyState();
+                nextItemState.set(key, state);
+                state.prevDeps = rule.itemRule.depsProvider(item, index, array, root);
+
+                if (rule.itemRule.condition(item, index, array, root)) {
+                    const scheduleCalculation = async () => {
+                        const data = await rule.itemRule.func(PromiseHelper.noneSignal, item, index, array, root);
+                        rule.itemRule.effect(data, item, index, array, root);
+                    }
+                    result.push(scheduleCalculation());
+                }
+
+
+                return result;
+            }, [] as Array<Promise<void>>);
+            
+            result.push(Promise.all(promises));
+            this.itemStates.set(rule.id, nextItemState);
+            return result;
+        }, [] as Array<Promise<void[]>>);
+
+        return Promise.all(promises);
+    }
+
     public calc = (root: T) => {
         for (const rule of this.rules) {
             const array = rule.path(root);

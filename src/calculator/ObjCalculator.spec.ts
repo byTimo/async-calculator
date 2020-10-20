@@ -125,22 +125,77 @@ describe("ObjCalculator", () => {
             id: "1",
             depsProvider: x => [x.a],
             condition: () => true,
-            func: (signal, x) => {
-                expect(x.a).toBe(10);
+            func: (signal, x) => Promise.resolve(x.a),
+            effect: data => {
+                expect(data).toBe(10);
                 done();
-                return Promise.resolve(10);
             },
-            effect: () => expect(false).toBe(true),
             options: {
                 debounce: 50
             }
         }]);
 
-    
+
         calculator.calc({ a: 2, b: 2 });
         await PromiseHelper.delay(10, PromiseHelper.noneSignal);
         calculator.calc({ a: 5, b: 7 });
         await PromiseHelper.delay(10, PromiseHelper.noneSignal);
         calculator.calc({ a: 10, b: 7 });
+    });
+
+    it("init rules", async () => {
+        const calculator = new ObjCalculator<Simple>([{
+            id: "1",
+            depsProvider: x => [x.a],
+            condition: () => true,
+            func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+            effect: data => expect(data).toBe(47),
+            options: {
+                calcInitTime: true,
+            }
+        }, {
+            id: "2",
+            depsProvider: x => [x.a],
+            condition: () => true,
+            func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+            effect: data => expect(false).toBe(true),
+        }]);
+
+        await calculator.init({ a: 47, b: 20 });
+    });
+
+    it("don't recalculate inited when deps are not changed", async () => {
+        const calculator = new ObjCalculator<Simple>([{
+            id: "1",
+            depsProvider: x => [x.a],
+            condition: () => true,
+            func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+            effect: data => expect(data).toBe(47),
+            options: {
+                calcInitTime: true,
+            }
+        }]);
+
+        await calculator.init({ a: 47, b: 20 });
+        calculator.calc({ a: 47, b: 20 });
+        expect(calculator.loading).toBe(false);
+    });
+
+    it("don't calculate rule when condition is false in init", async () => {
+        let counter = 0;
+
+        const calculator = new ObjCalculator<Simple>([{
+            id: "1",
+            depsProvider: x => [x.a],
+            condition: () => false,
+            func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+            effect: data => counter = data,
+            options: {
+                calcInitTime: true,
+            }
+        }]);
+
+        await calculator.init({ a: 47, b: 20 });
+        expect(counter).toBe(0);
     })
 })

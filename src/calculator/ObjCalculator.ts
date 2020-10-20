@@ -11,6 +11,25 @@ export class ObjCalculator<T> {
         this.state = rules.reduce((a, c) => a.set(c.id, emptyState()), new Map());
     }
 
+    public init = (root: T): Promise<void[]> => {
+        const initRules = this.rules.filter(x => x.options != null && x.options.calcInitTime);
+
+        const promises = initRules.reduce((result, rule) => {
+            const state = this.state.get(rule.id)!;
+            state.prevDeps = rule.depsProvider(root);
+            if (rule.condition(root)) {
+                const scheduleCalculation = async () => {
+                    const data = await rule.func(PromiseHelper.noneSignal, root);
+                    rule.effect(data, root);
+                }
+                result.push(scheduleCalculation());
+            }
+            return result;
+        }, [] as Array<Promise<void>>)
+
+        return Promise.all(promises);
+    }
+
     public calc = (root: T) => {
         for (const rule of this.rules) {
             const state = this.state.get(rule.id);

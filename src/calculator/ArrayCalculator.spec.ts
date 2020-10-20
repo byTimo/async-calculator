@@ -158,4 +158,75 @@ describe("ArrayCalculator", () => {
         item = withKey({ a: 10, b: "bar" }, item);
         calculator.calc({ array: [item] })
     });
+
+    it("should init rules", async () => {
+        const calculator = new ArrayCalculator<Root>([{
+            id: "a",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => true,
+                func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+                effect: d => expect(d).toBe(100),
+                options: {
+                    calcInitTime: true,
+                }
+            }
+        }, {
+            id: "b",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => true,
+                func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+                effect: () => expect(true).toBe(false),
+            }
+        }]);
+
+        await calculator.init({ array: [withKey({ a: 100, b: "lol" })] })
+    });
+
+    it("doesn't recalculate inited rules when deps are changed", async () => {
+        const calculator = new ArrayCalculator<Root>([{
+            id: "a",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => true,
+                func: (signal, x) => PromiseHelper.delay(10, signal).then(() => x.a),
+                effect: d => expect(d).toBe(100),
+                options: {
+                    calcInitTime: true,
+                }
+            }
+        }]);
+
+        let item = withKey({ a: 100, b: "lol" });
+        await calculator.init({ array: [item] });
+        item = withKey({ a: 100, b: "bar" }, item);
+        calculator.calc({ array: [item] });
+        expect(calculator.loading).toBe(false);
+    });
+
+    it("doesn't init rules when condition is false", async () => {
+        let count = 0;
+        
+        const calculator = new ArrayCalculator<Root>([{
+            id: "a",
+            path: x => x.array,
+            itemRule: {
+                depsProvider: x => [x.a],
+                condition: () => false,
+                func: () => Promise.resolve(10),
+                effect: () => count = 100,
+                options: {
+                    calcInitTime: true,
+                }
+            }
+        }]);
+
+        let item = withKey({ a: 100, b: "lol" });
+        await calculator.init({ array: [item] });
+        expect(count).toBe(0);
+    });
 })
